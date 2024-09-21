@@ -135,6 +135,7 @@ class _MusicPlayerMobileState extends State<MusicPlayerMobile> {
   }
 
   Future<void> _nextMusic() async {
+    await _stopMusic();
     await _fetchMusic();
     await _playMusic();
   }
