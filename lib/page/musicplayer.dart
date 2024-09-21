@@ -29,6 +29,8 @@ class _MusicPlayerState extends State<MusicPlayer> {
   );
 
   bool isPlaying = false;
+  bool isMuted = false;
+  double _volume = 1.0;
 
   @override
   void initState() {
@@ -50,18 +52,21 @@ class _MusicPlayerState extends State<MusicPlayer> {
   }
 
   void _initAudioPlayer() {
-    // Listen for changes in audio position
     _positionSubscription = _audioPlayer.onPositionChanged.listen((Duration p) {
       setState(() {
         _position = p;
       });
     });
 
-    // Listen for audio duration
     _durationSubscription = _audioPlayer.onDurationChanged.listen((Duration d) {
       setState(() {
         _duration = d;
       });
+    });
+
+    _audioPlayer.onPlayerComplete.listen((_) {
+      _fetchMusic();
+      _playMusic();
     });
   }
 
@@ -69,7 +74,8 @@ class _MusicPlayerState extends State<MusicPlayer> {
     if (isPlaying || currentSong == null) {
       return;
     }
-    await _audioPlayer.play(UrlSource(currentSong!.songUrl));
+    await _audioPlayer.play(UrlSource(currentSong!.songUrl),
+        position: _position);
     setState(() {
       isPlaying = true;
     });
@@ -82,8 +88,19 @@ class _MusicPlayerState extends State<MusicPlayer> {
     });
   }
 
+  Future<void> _seekVolume() async {
+    if (isMuted) {
+      await _audioPlayer.setVolume(0);
+      return;
+    }
+    await _audioPlayer.setVolume(_volume);
+  }
+
   Future<void> _fetchMusic() async {
     Song song = await api.fetch(filter);
+    _audioPlayer.play(UrlSource(song.songUrl));
+    _audioPlayer.stop();
+    _audioPlayer.seek(const Duration(milliseconds: 0));
     setState(() {
       currentSong = song;
     });
@@ -98,6 +115,22 @@ class _MusicPlayerState extends State<MusicPlayer> {
   void _seekMusic(double value) {
     final position = value * _duration.inMilliseconds;
     _audioPlayer.seek(Duration(milliseconds: position.toInt()));
+  }
+
+  String _positionText() {
+    final minutes =
+        _position.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds =
+        _position.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return "$minutes:$seconds";
+  }
+
+  String _durationText() {
+    final minutes =
+        _duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds =
+        _duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return "$minutes:$seconds";
   }
 
   @override
@@ -152,57 +185,145 @@ class _MusicPlayerState extends State<MusicPlayer> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 24),
+                                  Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          _positionText(),
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                          _durationText(),
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ]),
                                   Slider(
-                                    value: (_position.inSeconds.toDouble() <=
-                                            _duration.inSeconds.toDouble()
-                                        ? _position.inSeconds.toDouble()
-                                        : 0),
+                                    value: _position.inSeconds.toDouble(),
                                     max: _duration.inSeconds.toDouble(),
                                     onChanged: (value) {
-                                      _seekMusic(value);
+                                      setState(() {
+                                        _position =
+                                            Duration(seconds: value.toInt());
+                                      });
+                                    },
+                                    onChangeEnd: (value) {
+                                      _audioPlayer.seek(
+                                          Duration(seconds: value.toInt()));
                                     },
                                   ),
+                                  const SizedBox(height: 16),
                                   Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      IconButton(
-                                        onPressed: () {
-                                          if (!isPlaying) {
-                                            _playMusic();
-                                          }
-                                        },
-                                        icon: AnimatedSwitcher(
-                                          duration: const Duration(
-                                              milliseconds: 1000),
-                                          transitionBuilder: (Widget child,
-                                              Animation<double> animation) {
-                                            return FadeTransition(
-                                                opacity: animation,
-                                                child: child);
-                                          },
-                                          key: ValueKey<bool>(isPlaying),
-                                          child: isPlaying
-                                              ? const Icon(
-                                                  Icons.pause,
-                                                  color: Colors.white,
-                                                )
-                                              : const Icon(
-                                                  Icons.play_arrow,
-                                                  color: Colors.white,
-                                                ),
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            onPressed: () {
+                                              if (!isPlaying) {
+                                                _playMusic();
+                                              } else {
+                                                _stopMusic();
+                                              }
+                                            },
+                                            icon: AnimatedSwitcher(
+                                              duration: const Duration(
+                                                  milliseconds: 1000),
+                                              transitionBuilder: (Widget child,
+                                                  Animation<double> animation) {
+                                                return FadeTransition(
+                                                    opacity: animation,
+                                                    child: child);
+                                              },
+                                              key: ValueKey<bool>(isPlaying),
+                                              child: isPlaying
+                                                  ? const Icon(
+                                                      Icons.pause,
+                                                      color: Colors.white,
+                                                    )
+                                                  : const Icon(
+                                                      Icons.play_arrow,
+                                                      color: Colors.white,
+                                                    ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            onPressed: () {
+                                              _nextMusic();
+                                            },
+                                            icon: const Icon(Icons.fast_forward,
+                                                color: Colors.white),
+                                          ),
+                                          IconButton(
+                                            onPressed: () {},
+                                            icon: const Icon(Icons.filter_alt,
+                                                color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
+                                      Expanded(
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.start,
+                                          children: [
+                                            IconButton(
+                                              onPressed: () {
+                                                setState(() {
+                                                  isMuted = !isMuted;
+                                                  _seekVolume();
+                                                });
+                                              },
+                                              icon: AnimatedSwitcher(
+                                                duration: const Duration(
+                                                    milliseconds: 1000),
+                                                transitionBuilder:
+                                                    (Widget child,
+                                                        Animation<double>
+                                                            animation) {
+                                                  return FadeTransition(
+                                                      opacity: animation,
+                                                      child: child);
+                                                },
+                                                key: ValueKey<bool>(!isMuted),
+                                                child: !isMuted
+                                                    ? const Icon(
+                                                        Icons.volume_up,
+                                                        color: Colors.white,
+                                                      )
+                                                    : const Icon(
+                                                        Icons.volume_mute,
+                                                        color: Colors.white,
+                                                      ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Slider(
+                                                value: _volume,
+                                                max: 1.0,
+                                                onChanged: (value) {
+                                                  setState(() {
+                                                    setState(() {
+                                                      _volume = value;
+                                                      _seekVolume();
+                                                    });
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                      IconButton(
-                                        onPressed: () {
-                                          _nextMusic();
-                                        },
-                                        icon: const Icon(Icons.fast_forward,
-                                            color: Colors.white),
-                                      ),
-                                      IconButton(
-                                        onPressed: () {},
-                                        icon: const Icon(Icons.filter_alt,
-                                            color: Colors.white),
                                       ),
                                     ],
                                   ),
