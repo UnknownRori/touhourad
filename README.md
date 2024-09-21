@@ -1,16 +1,28 @@
-# touhourad
+# TouhouRad
 
-A new Flutter project.
+Multi-platform Touhou Music Player based on [https://touhourad.io/](https://touhourad.io/), currently has Touhou 01-09.
 
-## Getting Started
+## Screenshot
+<div style="display:flex">
+  <img src="https://github.com/UnknownRori/touhourad/blob/main/screenshot/Screenshot_20240921-161100.png" height="500" />
+  <img src="https://github.com/UnknownRori/touhourad/blob/main/screenshot/Screenshot_20240921-161106.png" height="500" />
+</div>
 
-This project is a starting point for a Flutter application.
+## Development
 
-A few resources to get you started if this is your first Flutter project:
+Make sure you have latest flutter installed
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```sh
+# Clone and enter directory
+git clone https://github.com/UnknownRori/touhourad
+cd touhourad
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+# Run the app
+flutter run
+```
+
+## Future plan
+
+- Support songs till Touhou 17.
+- Use my very own server for storing songs.
+- Properly support Web, Tablet, iOS.
