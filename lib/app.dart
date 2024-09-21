@@ -10,7 +10,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'TouhouRad',
       theme: ThemeData.dark(),
-      home: MusicPlayer(),
+      home: const MusicPlayer(),
     );
   }
 }

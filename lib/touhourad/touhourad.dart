@@ -1,21 +1,23 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:touhourad/models/song.dart';
 
-class TouhouFilterSong {
-  final bool pc98;
-  final bool classical;
-  final bool earlymodern;
-  final bool modern;
-  final bool popular;
+class TouhouFilterSong extends ChangeNotifier {
+  bool pc98;
+  bool classical;
+  bool earlymodern;
+  bool modern;
+  bool popular;
 
-  TouhouFilterSong(
-      {required this.pc98,
-      required this.classical,
-      required this.earlymodern,
-      required this.modern,
-      required this.popular});
+  TouhouFilterSong({
+    required this.pc98,
+    required this.classical,
+    required this.earlymodern,
+    required this.modern,
+    required this.popular,
+  });
 }
 
 class TouhouRad {

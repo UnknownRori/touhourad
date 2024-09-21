@@ -9,11 +9,11 @@ class MusicPlayer extends StatelessWidget {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         if (constraints.maxWidth <= 600) {
-          return MusicPlayerMobile();
+          return const MusicPlayerMobile();
         } else if (constraints.maxWidth <= 1200) {
-          return MusicPlayerMobile();
+          return const MusicPlayerMobile();
         } else {
-          return MusicPlayerMobile();
+          return const MusicPlayerMobile();
         }
       },
     );

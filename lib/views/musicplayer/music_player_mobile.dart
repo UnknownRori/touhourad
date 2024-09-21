@@ -7,6 +7,8 @@ import 'package:touhourad/models/song.dart';
 import 'package:touhourad/touhourad/touhourad.dart';
 
 class MusicPlayerMobile extends StatefulWidget {
+  const MusicPlayerMobile({super.key});
+
   @override
   _MusicPlayerMobileState createState() => _MusicPlayerMobileState();
 }
@@ -15,8 +17,8 @@ class _MusicPlayerMobileState extends State<MusicPlayerMobile> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<Duration>? _durationSubscription;
-  Duration _duration = Duration();
-  Duration _position = Duration();
+  Duration _duration = const Duration();
+  Duration _position = const Duration();
 
   TouhouRad api = TouhouRad();
   Song? currentSong;
@@ -30,6 +32,7 @@ class _MusicPlayerMobileState extends State<MusicPlayerMobile> {
 
   bool isPlaying = false;
   bool isMuted = false;
+  bool showFilter = false;
   double _volume = 1.0;
 
   @override
@@ -39,7 +42,17 @@ class _MusicPlayerMobileState extends State<MusicPlayerMobile> {
       _fetchMusic();
       _initAudioPlayer();
     } catch (e) {
-      print("Shit");
+      Future.delayed(Duration.zero, () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.redAccent,
+            content: Text(
+              'No internet connection',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+      });
     }
   }
 
@@ -97,24 +110,33 @@ class _MusicPlayerMobileState extends State<MusicPlayerMobile> {
   }
 
   Future<void> _fetchMusic() async {
-    Song song = await api.fetch(filter);
-    _audioPlayer.play(UrlSource(song.songUrl));
-    _audioPlayer.stop();
-    _audioPlayer.seek(const Duration(milliseconds: 0));
-    setState(() {
-      currentSong = song;
-    });
+    try {
+      Song song = await api.fetch(filter);
+
+      _audioPlayer.play(UrlSource(song.songUrl));
+      _audioPlayer.pause();
+      _audioPlayer.seek(const Duration(milliseconds: 0));
+      setState(() {
+        currentSong = song;
+      });
+    } catch (e) {
+      Future.delayed(Duration.zero, () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.redAccent,
+            content: Text(
+              'No song available',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        );
+      });
+    }
   }
 
   Future<void> _nextMusic() async {
-    _stopMusic();
-    _fetchMusic();
-    _playMusic();
-  }
-
-  void _seekMusic(double value) {
-    final position = value * _duration.inMilliseconds;
-    _audioPlayer.seek(Duration(milliseconds: position.toInt()));
+    await _fetchMusic();
+    await _playMusic();
   }
 
   String _positionText() {
@@ -155,188 +177,353 @@ class _MusicPlayerMobileState extends State<MusicPlayerMobile> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(16),
                         child: Center(
-                          child: Card(
-                            color: Colors.black.withOpacity(0.8),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8.0),
-                                    child: CachedNetworkImage(
-                                        imageUrl: currentSong!.imgMain),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    currentSong!.author,
-                                    style: const TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  Text(
-                                    currentSong!.title,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          _positionText(),
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Text(
-                                          _durationText(),
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ]),
-                                  Slider(
-                                    value: _position.inSeconds.toDouble(),
-                                    max: _duration.inSeconds.toDouble(),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _position =
-                                            Duration(seconds: value.toInt());
-                                      });
-                                    },
-                                    onChangeEnd: (value) {
-                                      _audioPlayer.seek(
-                                          Duration(seconds: value.toInt()));
-                                    },
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Row(
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 1000),
+                            transitionBuilder:
+                                (Widget child, Animation<double> animation) {
+                              return FadeTransition(
+                                  opacity: animation, child: child);
+                            },
+                            child: !showFilter
+                                ? Card(
+                                    key: const Key("Player"),
+                                    color: Colors.black.withOpacity(0.75),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          IconButton(
-                                            onPressed: () {
-                                              if (!isPlaying) {
-                                                _playMusic();
-                                              } else {
-                                                _stopMusic();
-                                              }
-                                            },
-                                            icon: AnimatedSwitcher(
-                                              duration: const Duration(
-                                                  milliseconds: 1000),
-                                              transitionBuilder: (Widget child,
-                                                  Animation<double> animation) {
-                                                return FadeTransition(
-                                                    opacity: animation,
-                                                    child: child);
-                                              },
-                                              key: ValueKey<bool>(isPlaying),
-                                              child: isPlaying
-                                                  ? const Icon(
-                                                      Icons.pause,
-                                                      color: Colors.white,
-                                                    )
-                                                  : const Icon(
-                                                      Icons.play_arrow,
-                                                      color: Colors.white,
-                                                    ),
+                                          ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(8.0),
+                                            child: CachedNetworkImage(
+                                                imageUrl: currentSong!.imgMain),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            currentSong!.author,
+                                            style: const TextStyle(
+                                              color: Colors.grey,
+                                              fontSize: 16,
                                             ),
                                           ),
-                                          IconButton(
-                                            onPressed: () {
-                                              _nextMusic();
-                                            },
-                                            icon: const Icon(Icons.fast_forward,
-                                                color: Colors.white),
+                                          Text(
+                                            currentSong!.title,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
-                                          IconButton(
-                                            onPressed: () {},
-                                            icon: const Icon(Icons.filter_alt,
-                                                color: Colors.white),
+                                          const SizedBox(height: 24),
+                                          Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Text(
+                                                  _positionText(),
+                                                  style: const TextStyle(
+                                                    color: Colors.grey,
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  _durationText(),
+                                                  style: const TextStyle(
+                                                    color: Colors.grey,
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ]),
+                                          Slider(
+                                            value:
+                                                _position.inSeconds.toDouble(),
+                                            max: _duration.inSeconds.toDouble(),
+                                            onChanged: (value) {
+                                              setState(() {
+                                                _position = Duration(
+                                                    seconds: value.toInt());
+                                              });
+                                            },
+                                            onChangeEnd: (value) {
+                                              _audioPlayer.seek(Duration(
+                                                  seconds: value.toInt()));
+                                            },
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  IconButton(
+                                                    onPressed: () {
+                                                      if (!isPlaying) {
+                                                        _playMusic();
+                                                      } else {
+                                                        _stopMusic();
+                                                      }
+                                                    },
+                                                    icon: AnimatedSwitcher(
+                                                      duration: const Duration(
+                                                          milliseconds: 1000),
+                                                      transitionBuilder:
+                                                          (Widget child,
+                                                              Animation<double>
+                                                                  animation) {
+                                                        return FadeTransition(
+                                                            opacity: animation,
+                                                            child: child);
+                                                      },
+                                                      key: ValueKey<bool>(
+                                                          isPlaying),
+                                                      child: isPlaying
+                                                          ? const Icon(
+                                                              Icons.pause,
+                                                              color:
+                                                                  Colors.white,
+                                                            )
+                                                          : const Icon(
+                                                              Icons.play_arrow,
+                                                              color:
+                                                                  Colors.white,
+                                                            ),
+                                                    ),
+                                                  ),
+                                                  IconButton(
+                                                    onPressed: () {
+                                                      _nextMusic();
+                                                    },
+                                                    icon: const Icon(
+                                                        Icons.fast_forward,
+                                                        color: Colors.white),
+                                                  ),
+                                                  IconButton(
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        showFilter = true;
+                                                      });
+                                                    },
+                                                    icon: const Icon(
+                                                        Icons.filter_alt,
+                                                        color: Colors.white),
+                                                  ),
+                                                ],
+                                              ),
+                                              Expanded(
+                                                child: Row(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.start,
+                                                  children: [
+                                                    IconButton(
+                                                      onPressed: () {
+                                                        setState(() {
+                                                          isMuted = !isMuted;
+                                                          _seekVolume();
+                                                        });
+                                                      },
+                                                      icon: AnimatedSwitcher(
+                                                        duration:
+                                                            const Duration(
+                                                                milliseconds:
+                                                                    1000),
+                                                        transitionBuilder:
+                                                            (Widget child,
+                                                                Animation<
+                                                                        double>
+                                                                    animation) {
+                                                          return FadeTransition(
+                                                              opacity:
+                                                                  animation,
+                                                              child: child);
+                                                        },
+                                                        key: ValueKey<bool>(
+                                                            !isMuted),
+                                                        child: !isMuted
+                                                            ? const Icon(
+                                                                Icons.volume_up,
+                                                                color: Colors
+                                                                    .white,
+                                                              )
+                                                            : const Icon(
+                                                                Icons
+                                                                    .volume_mute,
+                                                                color: Colors
+                                                                    .white,
+                                                              ),
+                                                      ),
+                                                    ),
+                                                    Expanded(
+                                                      child: Slider(
+                                                        value: _volume,
+                                                        max: 1.0,
+                                                        onChanged: (value) {
+                                                          setState(() {
+                                                            setState(() {
+                                                              _volume = value;
+                                                              _seekVolume();
+                                                            });
+                                                          });
+                                                        },
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
-                                      Expanded(
-                                        child: Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.start,
-                                          children: [
-                                            IconButton(
-                                              onPressed: () {
-                                                setState(() {
-                                                  isMuted = !isMuted;
-                                                  _seekVolume();
-                                                });
-                                              },
-                                              icon: AnimatedSwitcher(
-                                                duration: const Duration(
-                                                    milliseconds: 1000),
-                                                transitionBuilder:
-                                                    (Widget child,
-                                                        Animation<double>
-                                                            animation) {
-                                                  return FadeTransition(
-                                                      opacity: animation,
-                                                      child: child);
-                                                },
-                                                key: ValueKey<bool>(!isMuted),
-                                                child: !isMuted
-                                                    ? const Icon(
-                                                        Icons.volume_up,
-                                                        color: Colors.white,
-                                                      )
-                                                    : const Icon(
-                                                        Icons.volume_mute,
-                                                        color: Colors.white,
-                                                      ),
+                                    ),
+                                  )
+                                : Card(
+                                    key: const Key("Filter"),
+                                    color: Colors.black.withOpacity(0.75),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              IconButton(
+                                                onPressed: () => setState(() {
+                                                  showFilter = false;
+                                                }),
+                                                icon: const Icon(
+                                                    Icons.arrow_back,
+                                                    color: Colors.white),
                                               ),
-                                            ),
-                                            Expanded(
-                                              child: Slider(
-                                                value: _volume,
-                                                max: 1.0,
-                                                onChanged: (value) {
-                                                  setState(() {
+                                              const Text(
+                                                "Back",
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 24,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            children: [
+                                              Checkbox(
+                                                value: filter.pc98,
+                                                onChanged: (val) =>
                                                     setState(() {
-                                                      _volume = value;
-                                                      _seekVolume();
-                                                    });
-                                                  });
-                                                },
+                                                  filter.pc98 = val!;
+                                                }),
                                               ),
-                                            ),
-                                          ],
-                                        ),
+                                              const Text(
+                                                "PC-98 era (Touhou 1 - 5)",
+                                                style: TextStyle(
+                                                  color: Colors.grey,
+                                                  fontSize: 21,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Row(
+                                            children: [
+                                              Checkbox(
+                                                value: filter.classical,
+                                                onChanged: (val) =>
+                                                    setState(() {
+                                                  filter.classical = val!;
+                                                }),
+                                              ),
+                                              const Flexible(
+                                                child: Text(
+                                                  "Classical era (Touhou 6 - 9)",
+                                                  style: TextStyle(
+                                                    color: Colors.grey,
+                                                    fontSize: 21,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Row(
+                                            children: [
+                                              Checkbox(
+                                                value: filter.earlymodern,
+                                                onChanged: (val) =>
+                                                    setState(() {
+                                                  filter.earlymodern = val!;
+                                                }),
+                                              ),
+                                              const Flexible(
+                                                child: Text(
+                                                  "Early Modern era (Touhou 10 - 12)",
+                                                  style: TextStyle(
+                                                    color: Colors.grey,
+                                                    fontSize: 21,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Row(
+                                            children: [
+                                              Checkbox(
+                                                value: filter.modern,
+                                                onChanged: (val) =>
+                                                    setState(() {
+                                                  filter.modern = val!;
+                                                }),
+                                              ),
+                                              const Flexible(
+                                                child: Text(
+                                                  "Modern era (Touhou 13-17)",
+                                                  style: TextStyle(
+                                                    color: Colors.grey,
+                                                    fontSize: 21,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Row(
+                                            children: [
+                                              Checkbox(
+                                                value: filter.popular,
+                                                onChanged: (val) =>
+                                                    setState(() {
+                                                  filter.popular = val!;
+                                                }),
+                                              ),
+                                              const Flexible(
+                                                child: Text(
+                                                  "Popular Only",
+                                                  style: TextStyle(
+                                                    color: Colors.grey,
+                                                    fontSize: 21,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
-                                    ],
+                                    ),
                                   ),
-                                ],
-                              ),
-                            ),
                           ),
                         ),
-                      ),
+                      )
                     ],
                   ),
                 ]
-              : [const Center(child: const CircularProgressIndicator())],
+              : [const Center(child: CircularProgressIndicator())],
         ),
       ),
     );
